@@ -1,5 +1,7 @@
 import 'package:just_audio/just_audio.dart';
 
+final AudioPlayer globalAudioPlayer = AudioPlayer();
+
 class AudioPlayerService {
   static final _player = AudioPlayer();
 
