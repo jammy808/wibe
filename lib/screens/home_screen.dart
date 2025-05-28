@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:wibe/screens/now_playing.dart';
+import 'package:wibe/screens/playlist_screen.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as path;
+import '../services/audio_player_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,7 +17,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<File> songs = [];
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  final _audioPlayer = globalAudioPlayer;
   ConcatenatingAudioSource? _playlist;
   int? _currentIndex;
 
@@ -26,7 +28,6 @@ class _HomeScreenState extends State<HomeScreen> {
       requestPermissionAndFetchSongs();
     });
 
-    // Listen to current song changes
     _audioPlayer.currentIndexStream.listen((index) {
       if (mounted) {
         setState(() {
@@ -36,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     _audioPlayer.playerStateStream.listen((state) {
-      setState(() {}); // Update UI for play/pause
+      setState(() {});
     });
   }
 
@@ -98,7 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> preparePlaylist() async {
     if (songs.isEmpty) return;
 
-    // Create playlist with metadata tags for just_audio_background
     _playlist = ConcatenatingAudioSource(
       children: songs.map((song) {
         final songTitle = path.basenameWithoutExtension(song.path);
@@ -108,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
             id: song.path,
             album: "Local Music",
             title: songTitle,
-            artUri: Uri.parse('https://example.com/artwork.png'), // placeholder art
+            artUri: Uri.parse('https://example.com/artwork.png'),
           ),
         );
       }).toList(),
@@ -131,16 +131,37 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
-  }
+  // @override
+  // void dispose() {
+  //   _audioPlayer.dispose();
+  //   super.dispose();
+  // }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("My Music Player")),
+      appBar: AppBar(
+        title: const Text("My Music Player"),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PlaylistsScreen(allSongs: songs),
+                ),
+              );
+              // Called when coming *back* from PlaylistsScreen
+              await fetchSongs();       // Refresh song list
+              await preparePlaylist();  // Rebuild playlist for audio player
+            },
+            child: const Text(
+              "Playlist",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
