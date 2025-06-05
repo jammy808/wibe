@@ -6,8 +6,13 @@ import 'package:path/path.dart' as p;
 
 class CreatePlaylistScreen extends StatefulWidget {
   final List<File> allSongs;
+  final Playlist? existingPlaylist;
 
-  CreatePlaylistScreen({required this.allSongs});
+  const CreatePlaylistScreen({
+    super.key,
+    required this.allSongs,
+    this.existingPlaylist,
+  });
 
   @override
   _CreatePlaylistScreenState createState() => _CreatePlaylistScreenState();
@@ -18,16 +23,25 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
   final Set<String> selectedPaths = {};
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.existingPlaylist != null) {
+      _nameController.text = widget.existingPlaylist!.name;
+      selectedPaths.addAll(widget.existingPlaylist!.songPaths);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Create Playlist")),
+      appBar: AppBar(title: Text(widget.existingPlaylist == null ? "Create Playlist" : "Edit Playlist")),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: TextField(
               controller: _nameController,
-              decoration: InputDecoration(labelText: "Playlist Name"),
+              decoration: const InputDecoration(labelText: "Playlist Name"),
             ),
           ),
           Expanded(
@@ -56,14 +70,25 @@ class _CreatePlaylistScreenState extends State<CreatePlaylistScreen> {
           ElevatedButton(
             onPressed: () async {
               if (_nameController.text.isNotEmpty && selectedPaths.isNotEmpty) {
-                final newPlaylist = Playlist(name: _nameController.text, songPaths: selectedPaths.toList());
+                final newPlaylist = Playlist(
+                  name: _nameController.text,
+                  songPaths: selectedPaths.toList(),
+                );
+
                 final existing = await PlaylistStorage.loadPlaylists();
-                existing.add(newPlaylist);
+
+                if (widget.existingPlaylist != null) {
+                  final index = existing.indexWhere((p) => p.name == widget.existingPlaylist!.name);
+                  if (index != -1) existing[index] = newPlaylist;
+                } else {
+                  existing.add(newPlaylist);
+                }
+
                 await PlaylistStorage.savePlaylists(existing);
-                Navigator.pop(context);
+                Navigator.pop(context, true); // true = changed
               }
             },
-            child: Text("Save Playlist"),
+            child: const Text("Save Playlist"),
           )
         ],
       ),
