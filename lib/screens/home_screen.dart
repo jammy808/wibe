@@ -7,6 +7,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as path;
 import '../services/audio_player_service.dart';
+import 'youtube_downloader_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -76,12 +77,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> fetchSongs() async {
-    Directory downloadDir = Directory("/storage/emulated/0/Download");
+    Directory downloadDir = Directory('/storage/emulated/0/Music/');
     List<File> foundSongs = [];
 
     try {
       await for (var entity in downloadDir.list(recursive: true, followLinks: false)) {
-        if (entity is File && entity.path.toLowerCase().endsWith('.mp3')) {
+        if (entity is File && ( entity.path.toLowerCase().endsWith('.mp3') || entity.path.toLowerCase().endsWith('.m4a') )) {
           foundSongs.add(entity);
         }
       }
@@ -159,6 +160,19 @@ class _HomeScreenState extends State<HomeScreen> {
               "Playlist",
               style: TextStyle(color: Colors.white),
             ),
+          ),
+
+          TextButton(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                 MaterialPageRoute(builder: (_) => const YouTubeDownloader()),
+              );
+              // Called when coming *back* Download Screen
+              await fetchSongs();       // Refresh song list
+              await preparePlaylist();  // Rebuild playlist for audio player
+            },
+            child: const Icon(Icons.download),
           ),
         ],
       ),
