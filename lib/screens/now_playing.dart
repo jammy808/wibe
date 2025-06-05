@@ -1,19 +1,19 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:flutter_media_metadata/flutter_media_metadata.dart';
-import 'package:palette_generator/palette_generator.dart';
+import '../models/song_data.dart'; // import your SongData model
 
 class NowPlayingScreen extends StatefulWidget {
   final AudioPlayer player;
   final ConcatenatingAudioSource playlist;
+  final List<SongData> songs;
 
   const NowPlayingScreen({
     super.key,
     required this.player,
     required this.playlist,
+    required this.songs,
   });
 
   @override
@@ -23,15 +23,24 @@ class NowPlayingScreen extends StatefulWidget {
 class _NowPlayingScreenState extends State<NowPlayingScreen> {
   late AudioPlayer _player;
   late ConcatenatingAudioSource _playlist;
-  Uint8List? _coverImage;
-  Color _dominantColor = const Color(0xFF8A2BE2); // fallback violet
+
+  Uint8List? get _coverImage {
+    final index = _player.currentIndex;
+    if (index == null || index < 0 || index >= widget.songs.length) return null;
+    return widget.songs[index].coverImage;
+  }
+
+  Color get _dominantColor {
+    final index = _player.currentIndex;
+    if (index == null || index < 0 || index >= widget.songs.length) return const Color(0xFF8A2BE2);
+    return widget.songs[index].dominantColor;
+  }
 
   @override
   void initState() {
     super.initState();
     _player = widget.player;
     _playlist = widget.playlist;
-    _loadCoverImage();
   }
 
   void _playPause() => _player.playing ? _player.pause() : _player.play();
@@ -39,64 +48,18 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
   void _skipNext() async {
     if (_player.hasNext) {
       await _player.seekToNext();
-      Future.delayed(const Duration(milliseconds: 50), _loadCoverImage);
     }
   }
 
   void _skipPrevious() async {
     if (_player.hasPrevious) {
       await _player.seekToPrevious();
-      Future.delayed(const Duration(milliseconds: 50), _loadCoverImage);
     }
   }
 
   void _seekBy(Duration offset) {
     final current = _player.position;
     _player.seek(current + offset);
-  }
-
-  Future<void> _loadCoverImage() async {
-    final sequenceState = _player.sequenceState;
-    final currentSource = sequenceState?.currentSource;
-    final mediaItem = currentSource?.tag as MediaItem?;
-    final path = mediaItem?.id;
-
-    if (path == null || !File(path).existsSync()) {
-      setState(() {
-        _coverImage = null;
-        _dominantColor = Colors.black;
-      });
-      return;
-    }
-
-    setState(() => _coverImage = null);
-
-    try {
-      final metadata = await MetadataRetriever.fromFile(File(path));
-      final updatedPath = (_player.sequenceState?.currentSource?.tag as MediaItem?)?.id;
-
-      if (updatedPath == path) {
-        final image = metadata.albumArt;
-        setState(() => _coverImage = image);
-
-        //_dominantColor = const Color(0xFF8A2BE2);
-
-        if (image != null) {
-          final palette = await PaletteGenerator.fromImageProvider(
-            MemoryImage(image),
-            size: const Size(200, 200),
-          );
-          setState(() {
-            _dominantColor = palette.dominantColor?.color ?? const Color(0xFF8A2BE2);
-          });
-        }
-      }
-    } catch (e) {
-      setState(() {
-        _coverImage = null;
-        _dominantColor = Colors.black;
-      });
-    }
   }
 
   @override
@@ -146,7 +109,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                   _dominantColor,
                   Colors.black,
                 ],
-                stops: [0.0, 0.2, 0.7, 1.0], // 0–50% black, 50–80% dominantColor, 80–100% black
+                stops: [0.0, 0.2, 0.7, 1.0],
               ),
             ),
             child: Column(
@@ -179,7 +142,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                           CircleAvatar(
                             radius: 125,
                             backgroundColor: const Color.fromARGB(168, 255, 255, 255),
-                            backgroundImage: _coverImage != null ? MemoryImage(_coverImage!) : null,
+                            backgroundImage:
+                                _coverImage != null ? MemoryImage(_coverImage!) : null,
                             child: _coverImage == null
                                 ? const Icon(Icons.music_note, size: 80, color: Colors.white54)
                                 : null,
@@ -261,7 +225,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                             margin: const EdgeInsets.all(8.0),
                             width: 64,
                             height: 64,
-                            child: const CircularProgressIndicator(color: Colors.purpleAccent),
+                            child: CircularProgressIndicator(color: _dominantColor),
                           );
                         } else if (!playing) {
                           return IconButton(
