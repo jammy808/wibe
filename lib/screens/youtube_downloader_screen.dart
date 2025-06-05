@@ -25,23 +25,12 @@ class _YouTubeDownloaderState extends State<YouTubeDownloader> {
     final yt = YoutubeExplode();
 
     try {
-      // Request storage permission
-      // final status = await Permission.storage.request();
-      // if (!status.isGranted) {
-      //   setState(() {
-      //     _message = 'Permission denied';
-      //     _isLoading = false;
-      //   });
-      //   return;
-      // }
-
       final video = await yt.videos.get(url);
       final manifest = await yt.videos.streamsClient.getManifest(video.id);
       final audioStreamInfo = manifest.audioOnly.withHighestBitrate();
 
       final audioStream = yt.videos.streamsClient.get(audioStreamInfo);
 
-      // Safe directory
       final dir = await getExternalStorageDirectory();
       final sanitizedTitle = video.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
       final filePath = '${dir!.path}/$sanitizedTitle.m4a';
@@ -59,16 +48,14 @@ class _YouTubeDownloaderState extends State<YouTubeDownloader> {
 
       final newFilePath = '${musicDir.path}/$sanitizedTitle.m4a';
       await file.copy(newFilePath);
-
-      // Optionally delete the original temp file
       await file.delete();
 
       setState(() {
-        _message = 'Downloaded to:\n$newFilePath';
+        _message = '✅ Downloaded to:\n$newFilePath';
       });
     } catch (e) {
       setState(() {
-        _message = 'Download failed: $e';
+        _message = '❌ Download failed: $e';
         print('Download failed: $e');
       });
     } finally {
@@ -82,32 +69,101 @@ class _YouTubeDownloaderState extends State<YouTubeDownloader> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('YouTube MP3 Downloader')),
+      appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color.fromARGB(255, 165, 0, 0), Colors.deepOrangeAccent],
+              begin: Alignment.bottomLeft,
+              end: Alignment.topRight,
+            ),
+          ),
+        ),
+        title: const Text('YouTube MP3 Downloader'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: _controller,
-              decoration: const InputDecoration(
-                labelText: 'YouTube URL',
-                border: OutlineInputBorder(),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Card(
+              elevation: 6,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _controller,
+                      decoration: InputDecoration(
+                        labelText: 'Enter YouTube URL',
+                        prefixIcon: const Icon(Icons.link),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _isLoading ? null : () => _downloadAudio(_controller.text),
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Colors.redAccent, Colors.deepOrange],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Container(
+                            alignment: Alignment.center,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Text(
+                                    'Download MP3',
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    if (_message.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _message.startsWith('✅')
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _message.startsWith('✅') ? Colors.green : Colors.red,
+                          ),
+                        ),
+                        child: Text(
+                          _message,
+                          style: TextStyle(
+                            color: _message.startsWith('✅') ? Colors.green[700] : Colors.red[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _isLoading ? null : () => _downloadAudio(_controller.text),
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Download MP3'),
-            ),
-            const SizedBox(height: 16),
-            if (_message.isNotEmpty)
-              Text(
-                _message,
-                style: const TextStyle(color: Colors.green),
-              ),
-          ],
+          ),
         ),
       ),
     );
